@@ -190,27 +190,21 @@ Script
 
 Executable
 1   > ghc --make main
+2   > ./main
 
 In both the script and the executable, there are some relatively terse prompts.
-There are two preconfigured options - 25519 and 7615, corresponding 2^255-19 and
-2^76-15, respectively. If you don't want to use these options, then type any
-other key and you will be prompted for the base and offset, where the prime
-corresponds to 2^base - offset, and then representation, which is a series of
-block sizes delimited by spaces. For example, the representation for 2^76-15 is
-26 25 25, which corresponds to (f0 + 2^26*f1 + 2^51*f2), and f0 is 26 bits wide,
-f1 is 25 bits wide, and f2 is 25 bits wide, so that the internal representation
-for any element of this field is just [f0 f1 f2].
+There are three preconfigured options - 25519, 7615, and 1271 corresponding to 
+2^255-19, 2^76-15, and 2^126-1 respectively. If you don't want to use these
+options, then type any other key and you will be prompted for the base and
+offset, where the prime corresponds to 2^base - offset, and then representation,
+which is a series of block sizes delimited by spaces. For example, the
+representation for 2^76-15 is 26 25 25, which corresponds to (f0 + 2^26*f1 +
+2^51*f2), and f0 is 26 bits wide, f1 is 25 bits wide, and f2 is 25 bits wide, so
+that the internal representation for any element of this field is just [f0 f1
+f2].
 
-Optimization Tests
-1   > ghci
-2   Prelude> :l test
-3   *Main> test
-4   *Main> test "-u"
-
-(1) Unforunately this is only available in interactive mode
-(2) I put all the necessary dependencies in the "test" module
-(3) this runs it with optimizations turned on
-(4) this runs it with optimizations turned off
+Run the optimization tests with the unopt flag set on and off to see the
+difference.
 
 HOW TO TEST
 ================================================================================
@@ -230,7 +224,9 @@ complicated (real-world!) test case.
 There is also another, much easier prime that makes manual inspection a lot less
 tedious - try inputing "7615", which corresponds to the prime 2^76-15.
 
-Versions/Dependencies
+The --weird flag tests out some weird representations for correctness.
+
+VERSIONS/DEPENDENCIES
 ================================================================================
 I am using GHCi 7.8.3. External dependencies are Data.List, Data.List.split,
 Data.Function, and Text.Regex.

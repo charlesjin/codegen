@@ -584,7 +584,9 @@ module Gen where
                           right=A.VarExp v }
         exp   = A.InitExp { ivar=lval,
                             iexp=r }
-    in exp : p
+    in if (offset == 1)
+       then p
+       else exp : p
 
 -- This returns a list of lists. The first index i corresponds to fi, the 
 -- second index j corresponds to gj, and the entry at (i,j) is (ei + ej - ek),
@@ -640,7 +642,7 @@ module Gen where
   gen_feMul_precomp_pairs' in1 in2 in1idx in2idx len offset (a:as) =
     let in1'          = in1 ++ (show in1idx)
         in2'          = in2 ++ (show in2idx)
-        (mult2, var2) = if (in1idx + in2idx >= len)
+        (mult2, var2) = if (in1idx + in2idx >= len && offset > 1)
                         then (offset, in2' ++ "_" ++ (show offset))
                         else (1, in2')
         (mult1, var1) = if (a == 0)
@@ -887,7 +889,7 @@ module Gen where
   gen_feSquare_red_coeff' [] [] = []
   gen_feSquare_red_coeff' (a:as) (b:bs) =
     let t = gen_feSquare_red_coeff' as bs
-        h = if ( (not (b == 0)) && (a `rem` b == 0))
+        h = if ( (not (b == 0)) && (a `rem` b == 0) )
             then a `div` b
             else a
      in h : t
@@ -930,21 +932,21 @@ module Gen where
               t       = gen_feSquare_pc_coeff' var_in as
          in h : t
 
--- Generates the precomputations for the minimum offsets.
-  gen_feSquare_pc_offset :: String -> [Int] -> Int -> [A.Exp]
-  gen_feSquare_pc_offset _ [] _ = []
-  gen_feSquare_pc_offset var_in (a:as) idx =
-    if (a == 1)
-    then gen_feSquare_pc_offset var_in as (idx+1)
-    else let  var_in' = var_in ++ "_" ++ (show a)
-              e       = A.OpExp { left=A.IntExp(a),
-                                  oper=A.TimesOp,
-                                  right=A.VarExp A.Var { v=var_in, 
-                                                         idx=Nothing } }
-              lval    = A.Var { v=var_in', idx=Nothing }
-              h       = A.InitExp { ivar = lval, iexp = e }
-              t       = gen_feSquare_pc_coeff' var_in as
-         in h : t
+---- Generates the precomputations for the minimum offsets.
+--  gen_feSquare_pc_offset :: String -> [Int] -> Int -> [A.Exp]
+--  gen_feSquare_pc_offset _ [] _ = []
+--  gen_feSquare_pc_offset var_in (a:as) idx =
+--    if (a == 1)
+--    then gen_feSquare_pc_offset var_in as (idx+1)
+--    else let  var_in' = var_in ++ "_" ++ (show a)
+--              e       = A.OpExp { left=A.IntExp(a),
+--                                  oper=A.TimesOp,
+--                                  right=A.VarExp A.Var { v=var_in, 
+--                                                         idx=Nothing } }
+--              lval    = A.Var { v=var_in', idx=Nothing }
+--              h       = A.InitExp { ivar = lval, iexp = e }
+--              t       = gen_feSquare_pc_coeff' var_in as
+--         in h : t
 
 -- makes an array length len of empty arrays
   gen_feSquare_init :: Int -> [[Int]]
@@ -1031,33 +1033,57 @@ module Gen where
                                                       oper=A.PlusOp,
                                                       right=e}
                       in (ps' , (ppentry':pairprod') , [sumentry'])
-                 else let ps''         = appendnth ps' i (a `div` c)
-                          ps'''        = appendnth ps'' i' c
-                          c2           = if (a `div` c == 1)
-                                         then ""
-                                         else "_" ++ (show (a `div` c))
-                          c1           = if (c == 1)
-                                         then ""
-                                         else "_" ++ (show c)
-                          l        = A.TypeCastExp { tcexp=A.VarExp A.Var { v=(var_in ++ (show i') ++ c1), idx=Nothing },
-                                                tctyp="int64" }
-                          r        = A.TypeCastExp { tcexp=A.VarExp A.Var { v=(var_in ++ (show i) ++ c2), idx=Nothing },
-                                                tctyp="int64" }
-                          ppentry  = A.OpExp { left=l,
-                                               oper=A.TimesOp,
-                                               right=r }
-                          ppentry' = A.InitExp { ivar = A.Var {v=(var_in ++ (show i') ++ var_in ++ (show i) ++ "_" ++ (show a)),
-                                                               idx=Nothing },
-                                                 iexp = ppentry }
-                          sumentry = A.VarExp A.Var { v=(var_in ++ (show i') ++ var_in ++ (show i) ++ "_" ++ (show a)),
-                                                 idx=Nothing }
-                          sumentry' = if (null sums')
-                                      then sumentry
-                                      else let e = head sums'
-                                           in A.OpExp {left=sumentry,
-                                                      oper=A.PlusOp,
-                                                      right=e}
-                      in (ps''', (ppentry':pairprod') , [sumentry'])
+                 else if (a < c)
+                      then  let ps''        = appendnth ps' i a
+                                c2          = if (a > 1)
+                                              then "_" ++ (show a)
+                                              else ""
+                                l        = A.TypeCastExp { tcexp=A.VarExp A.Var { v=(var_in ++ (show i')), idx=Nothing },
+                                                      tctyp="int64" }
+                                r        = A.TypeCastExp { tcexp=A.VarExp A.Var { v=(var_in ++ (show i) ++ c2), idx=Nothing },
+                                                      tctyp="int64" }
+                                ppentry  = A.OpExp { left=l,
+                                                     oper=A.TimesOp,
+                                                     right=r }
+                                ppentry' = A.InitExp { ivar = A.Var {v=(var_in ++ (show i') ++ var_in ++ (show i) ++ "_" ++ (show a)),
+                                                                     idx=Nothing },
+                                                       iexp = ppentry }
+                                sumentry = A.VarExp A.Var { v=(var_in ++ (show i') ++ var_in ++ (show i) ++ "_" ++ (show a)),
+                                                       idx=Nothing }
+                                sumentry' = if (null sums')
+                                            then sumentry
+                                            else let e = head sums'
+                                                 in A.OpExp {left=sumentry,
+                                                            oper=A.PlusOp,
+                                                            right=e}
+                            in (ps'', (ppentry':pairprod') , [sumentry'])
+                      else  let ps''        = appendnth ps' i (a `div` c)
+                                ps'''       = appendnth ps'' i' c
+                                c2          = if (a `div` c > 1)
+                                              then "_" ++ (show (a `div` c))
+                                              else ""
+                                c1          = if (c > 1)
+                                              then "_" ++ (show c)
+                                              else ""
+                                l        = A.TypeCastExp { tcexp=A.VarExp A.Var { v=(var_in ++ (show i') ++ c1), idx=Nothing },
+                                                      tctyp="int64" }
+                                r        = A.TypeCastExp { tcexp=A.VarExp A.Var { v=(var_in ++ (show i) ++ c2), idx=Nothing },
+                                                      tctyp="int64" }
+                                ppentry  = A.OpExp { left=l,
+                                                     oper=A.TimesOp,
+                                                     right=r }
+                                ppentry' = A.InitExp { ivar = A.Var {v=(var_in ++ (show i') ++ var_in ++ (show i) ++ "_" ++ (show a)),
+                                                                     idx=Nothing },
+                                                       iexp = ppentry }
+                                sumentry = A.VarExp A.Var { v=(var_in ++ (show i') ++ var_in ++ (show i) ++ "_" ++ (show a)),
+                                                       idx=Nothing }
+                                sumentry' = if (null sums')
+                                            then sumentry
+                                            else let e = head sums'
+                                                 in A.OpExp {left=sumentry,
+                                                            oper=A.PlusOp,
+                                                            right=e}
+                            in (ps''', (ppentry':pairprod') , [sumentry'])
   gen_feSquare_sums' _ _ _ a b c _ _ _ _ = (a,b,c)
 
   gen_feSquare_init_coeff :: String -> [[Int]] -> Int -> [A.Exp]

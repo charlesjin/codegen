@@ -42,14 +42,19 @@ module Param where
     let o   = if (isInfixOf "--unopt" s || isInfixOf "-u" s)
               then False
               else True
+        w   = if (isInfixOf "--weird" s || isInfixOf "-w" s)
+              then True
+              else False
     in if (isInfixOf "25519" s)
-       then gen25519 o
+       then gen25519 o w
        else (if isInfixOf "7615" s
-             then gen7615 o
-             else error "Sorry, do not recognize that input.") 
+             then gen7615 o w
+             else (if isInfixOf "1271" s
+                   then gen1271 o w
+                   else error "Sorry, do not recognize that input."))
 
-  gen25519 :: Bool -> Params
-  gen25519 o =
+  gen25519 :: Bool -> Bool -> Params
+  gen25519 o w =
     Params {  base=255,
               offset=19,
               sign=Negative,
@@ -57,11 +62,29 @@ module Param where
               len=10,
               opt=o }
 
-  gen7615 :: Bool -> Params
-  gen7615 o =
-    Params {  base=76,
-              offset=15,
-              sign=Negative,
-              rep=[26,25,25],
-              len=3,
-              opt=o }
+  gen7615 :: Bool -> Bool -> Params
+  gen7615 o w =
+    let r = if w
+            then [26,26,24]
+            else [26,25,25]
+    in Params { base=76,
+                offset=15,
+                sign=Negative,
+                rep=r,
+                len=3,
+                opt=o }
+
+  gen1271 :: Bool -> Bool -> Params
+  gen1271 o w =
+    let r = if w
+            then [26,26,26,25,24]
+            else [26,25,26,25,25]
+    in Params { base=127,
+                offset=1,
+                sign=Negative,
+                rep=[26,26,26,25,24],
+                len=5,
+                opt=o }
+
+
+
